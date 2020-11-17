@@ -4,7 +4,7 @@ services:
         restart: always
         image: gunny26/s3-bucket-replicator:latest
         build: .
-        mem_limit: 32m
+        mem_limit: 128m
         cpu_count: 1
         environment:
             TZ: "Europe/Vienna"
@@ -19,7 +19,7 @@ services:
         restart: always
         image: gunny26/s3-bucket-replicator:latest
         build: .
-        mem_limit: 32m
+        mem_limit: 128m
         cpu_count: 1
         environment:
             TZ: "Europe/Vienna"
