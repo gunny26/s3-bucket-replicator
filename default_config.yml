@@ -1,0 +1,12 @@
+source:
+    aws_access_key_id: "<source_access_key_id>"
+    aws_secret_access_key: "<source_secret_access_key>"
+    endpoint_url: "<source_endpoint_schema>://<source_endpoint_hostname>:<source_endpoint_port>"
+    bucket_name: "<source_bucket_name>"
+
+target:
+    aws_access_key_id: "<target_access_key_id>"
+    aws_secret_access_key: "<target_secret_access_key>"
+    endpoint_url: "<target_endpoint_schema>://<target_endpoint_hostname>:<target_endpoint_port>"
+    bucket_name: "<target_bucket_name>"
+ 

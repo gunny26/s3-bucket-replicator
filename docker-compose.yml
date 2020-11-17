@@ -1,0 +1,32 @@
+version: '2.4'
+services:
+    blockstorage-sync:
+        restart: always
+        image: gunny26/s3-bucket-replicator:latest
+        build: .
+        mem_limit: 32m
+        cpu_count: 1
+        environment:
+            TZ: "Europe/Vienna"
+        volumes:
+            - type: bind
+              source: ./blockstorage_config.yml
+              target: /usr/src/app/config.yml
+            - type: bind
+              source: ./filestorage_db
+              target: /usr/src/app/db
+    filestorage-sync:
+        restart: always
+        image: gunny26/s3-bucket-replicator:latest
+        build: .
+        mem_limit: 32m
+        cpu_count: 1
+        environment:
+            TZ: "Europe/Vienna"
+        volumes:
+            - type: bind
+              source: ./filestorage_config.yml
+              target: /usr/src/app/config.yml
+            - type: bind
+              source: ./blockstorage_db
+              target: /usr/src/app/db
