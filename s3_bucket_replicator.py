@@ -1,21 +1,14 @@
 #!/usr/bin/python3
-# taken from https://boto3.amazonaws.com/v1/documentation/api/latest/guide/s3-example-creating-buckets.html
-# modified to use custom S3 configuration
-import os
-import sys
+import argparse
 import logging
 # non std modules
 import boto3
 from botocore.exceptions import ClientError
-import yaml
 # own modules
 from SqliteSet import SqliteSet
 
-def read_config(filename):
-    # read global config
-    config = yaml.safe_load(open(filename, "rt"))
-    logging.debug(config)
-    return config
+logging.basicConfig(level=logging.INFO)
+
 
 def sync_storage(source_client, source_bucket_name, target_client, target_bucket_name):
     """
@@ -29,44 +22,56 @@ def sync_storage(source_client, source_bucket_name, target_client, target_bucket
     for page in page_iterator:
         for key in page['Contents']:
             if key["Key"] in keycache:
+                logging.debug("object {key['Key']} already marked as copied, skipping")
                 continue
-            print(f"reading object source/{source_bucket_name}/{key['Key']}")
+            logging.debug(f"reading object source/{source_bucket_name}/{key['Key']}")
             data = source_client.get_object(Bucket=source_bucket_name, Key=key["Key"])
             try:
                 target_client.head_object(Bucket=target_bucket_name, Key=key["Key"])
                 # found
-                print(f"skipping key {key['Key']} it already exists")
+                logging.info(f"skipping key {key['Key']} it already exists on target, use --overwrite to enable")
                 keycache.add(key['Key'])
             except ClientError:
                 # Not found
-                print(f"writing object target/{target_bucket_name}/{key['Key']}")
-                print(f"copy {key['Key']} to target")
+                logging.debug(f"writing object target/{target_bucket_name}/{key['Key']}")
+                logging.info(f"copy {key['Key']} to target")
                 res = target_client.upload_fileobj(data["Body"], target_bucket_name, key["Key"])
+                logging.debug(res)
                 keycache.add(key['Key'])
             finally:
                 pass
 
+
 if __name__ == "__main__":
-    if len(sys.argv) == 1:
-        print("usage <config_filename>")
-        sys.exit(1)
-    if not os.path.isfile(sys.argv[1]):
-        print(f"file {sys.argv[1]} does not exist")
-        sys.exit(2)
-    config = read_config(sys.argv[1])
+    parser = argparse.ArgumentParser("Tool so copy Objects between to S3 Servers")
+    parser.add_argument("--source-endpoint-url", help="Source Endpoint URL")
+    parser.add_argument("--source-endpoint-access-key", help="Source Endpoint Access-Key")
+    parser.add_argument("--source-endpoint-secret", help="Source Endpoint Secret")
+    parser.add_argument("--source-bucket", help="Source Endpoint Bucket")
+    parser.add_argument("--target-endpoint-url", help="Target Endpoint URL")
+    parser.add_argument("--target-endpoint-access-key", help="Target Endpoint Access-Key")
+    parser.add_argument("--target-endpoint-secret", help="Target Endpoint Secret")
+    parser.add_argument("--target-bucket", help="Target Endpoint Bucket")
+    args = parser.parse_args()
+
+    logging.info(f"connection source s3 storage on {args.source_endpoint_url}")
     source_client = boto3.client(
         "s3",
-        aws_access_key_id=config["source"]["aws_access_key_id"],
-        aws_secret_access_key=config["source"]["aws_secret_access_key"],
-        endpoint_url=config["source"]["endpoint_url"]
+        aws_access_key_id=args.source_endpoint_access_key,
+        aws_secret_access_key=args.source_endpoint_secret,
+        endpoint_url=args.source_endpoint_url
     )
-    source_bucket_name = config["source"]["bucket_name"]
+    source_bucket_name = args.source_bucket
+
+    logging.info(f"connection target s3 storage on {args.target_endpoint_url}")
     target_client = boto3.client(
         "s3",
-        aws_access_key_id=config["target"]["aws_access_key_id"],
-        aws_secret_access_key=config["target"]["aws_secret_access_key"],
-        endpoint_url=config["target"]["endpoint_url"]
+        aws_access_key_id=args.target_endpoint_access_key,
+        aws_secret_access_key=args.target_endpoint_secret,
+        endpoint_url=args.target_endpoint_url
     )
-    target_bucket_name = config["target"]["bucket_name"]
-    keycache = SqliteSet(f"db/{config['source']['bucket_name']}_state.db")
+    target_bucket_name = args.target_bucket
+
+    keycache = SqliteSet("./state.db")  # to keep track of already copied objects
+
     sync_storage(source_client, source_bucket_name, target_client, target_bucket_name)
